@@ -330,7 +330,7 @@ namespace render
 
 		RasterTriangle(Va_ndc, Vb_ndc, Vc_ndc, colorAvg, colorAvg, colorAvg, scr);	
 	}
-	
+
 	void PhongShading(Vector4f Va, Vector4f Vb, Vector4f Vc, Vector4f Na, Vector4f Nb, Vector4f Nc, material_data &material, Scene::SceneData &scn, ScreenData &scr)
 	{
 		Vector3f normA = Vector3f(Na[0], Na[1], Na[2]).normalized();
@@ -339,7 +339,6 @@ namespace render
 		Vector3f Va_world = Vector3f(Va[0], Va[1], Va[2]);
 		Vector3f Vb_world = Vector3f(Vb[0], Vb[1], Vb[2]);
 		Vector3f Vc_world = Vector3f(Vc[0], Vc[1], Vc[2]);
-
 		Vector3f Va_ndc = Scene::WorldtoNDC(scn.transformData, Va);
 		Vector3f Vb_ndc = Scene::WorldtoNDC(scn.transformData, Vb);
 		Vector3f Vc_ndc = Scene::WorldtoNDC(scn.transformData, Vc);
@@ -382,6 +381,19 @@ namespace render
 
 	}
 
+	void Wireframe(Vector4f Va, Vector4f Vb, Vector4f Vc, Scene::SceneData &scn, ScreenData &scr)
+	{
+		Vector3f Va_ndc = Scene::WorldtoNDC(scn.transformData, Va);
+		Vector3f Vb_ndc = Scene::WorldtoNDC(scn.transformData, Vb);
+		Vector3f Vc_ndc = Scene::WorldtoNDC(scn.transformData, Vc);
+		Vector2f Pa = Scene::NDCtoScreen(scr.width, scr.height, Va_ndc);
+		Vector2f Pb = Scene::NDCtoScreen(scr.width, scr.height, Vb_ndc);
+		Vector2f Pc = Scene::NDCtoScreen(scr.width, scr.height, Vc_ndc);
+		DrawLine(Pa, Pb, scr.pixels, Vector3f(255, 255, 0));
+		DrawLine(Pb, Pc, scr.pixels, Vector3f(255, 255, 0));
+		DrawLine(Pc, Pa, scr.pixels, Vector3f(255, 255, 0));
+	}
+
 	void Render(int width, int height, int mode, Scene::SceneData &scn, ScreenData &scr)
 	{
 		for(int i = 0; i < scn.objWorld.size(); i++)
@@ -404,12 +416,13 @@ namespace render
 				Vector4f n1 = obj.n[indexN1];
 				Vector4f n2 = obj.n[indexN2];
 				if(mode == 0)
-					render::PhongShading(v0, v1, v2, n0, n1, n2, obj.material, scn, scr);
+					PhongShading(v0, v1, v2, n0, n1, n2, obj.material, scn, scr);
 				else if(mode == 1)
-					render::GouraudShading(v0, v1, v2, n0, n1, n2, obj.material, scn, scr);
+					GouraudShading(v0, v1, v2, n0, n1, n2, obj.material, scn, scr);
 				else if(mode == 2)
-					render::FlatShading(v0, v1, v2, n0, n1, n2, obj.material, scn, scr);
-
+					FlatShading(v0, v1, v2, n0, n1, n2, obj.material, scn, scr);
+				else if(mode == 3)
+					Wireframe(v0, v1, v2, scn, scr);
 			}
 		}
 	}
