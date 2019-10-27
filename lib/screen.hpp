@@ -19,29 +19,27 @@ struct ScreenData
 	vector<tempObj> temp;
 	int width;
 	int height;
-	Vector3f bgColor = Vector3f(0, 0, 0);
-	Vector3f wireColor = Vector3f(255, 255, 0);
 	vector<vector<Vector3f>> pixels;
 	vector<vector<float>> dBuffer;
-	void Init(int xRes, int yRes, ScreenData &scr);
-};
+	Vector3f bgCol;
 
-
-void ScreenData::Init(int xRes, int yRes, ScreenData &scr)
-{
-	for(int y = 0; y < yRes; y++)
+	ScreenData(int xRes, int yRes, Vector3f _bgCol)
 	{
-		vector<Vector3f> row;
-		vector<float> depth;
-		for(int x = 0; x < xRes; x++)
+		width = xRes;
+		height = yRes;
+		bgCol = _bgCol;
+		for(int y = 0; y < yRes; y++)
 		{
-			row.push_back(scr.bgColor);
-			depth.push_back(3.402823e+38);
+			vector<Vector3f> pxlRow;
+			vector<float> dptRow;
+			for(int x = 0; x < xRes; x++)
+			{
+				pxlRow.push_back(bgCol);
+				dptRow.push_back(3.402823e+38);
+			}
+			pixels.push_back(pxlRow);
+			dBuffer.push_back(dptRow);
 		}
-		scr.pixels.push_back(row);
-		scr.dBuffer.push_back(depth);
 	}
-	scr.width = xRes;
-	scr.height = yRes;
-}
+};
 #endif

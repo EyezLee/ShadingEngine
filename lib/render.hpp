@@ -1,6 +1,7 @@
 #include <iostream>
 #include <Eigen>
 #include <scene.hpp>
+#include <screen.hpp>
 #include <cmath>
 
 using namespace std;
@@ -195,7 +196,7 @@ namespace render
 		pixels[y][x] = c;
 	}
 
-	Vector3f Lighting(Vector3f v, Vector3f n, material_data &mat, vector<light_data> &lights, Vector3f e)
+	Vector3f Lighting(Vector3f v, Vector3f n, material_data &mat, vector<light_data> &lightData, Vector3f e)
 	{
 		Vector3f diffuseCol = mat.diffuse;
 		Vector3f ambientCol = mat.ambient;
@@ -208,9 +209,9 @@ namespace render
 		Vector3f eDir = e - v;
 		eDir = eDir.normalized();
 
-		for(int i = 0; i < lights.size(); i++)
+		for(int i = 0; i < lightData.size(); i++)
 		{
-			light_data currLit = lights[i];
+			light_data currLit = lightData[i];
 			Vector3f lPos = currLit.position;
 			Vector3f lCol = currLit.color;
 			Vector3f lDir = (lPos - v).normalized();
@@ -241,19 +242,15 @@ namespace render
 		return output;
 	}
 
-	void RasterTriangle(Vector3f Va_ndc, Vector3f Vb_ndc, Vector3f Vc_ndc, Vector3f aCol, Vector3f bCol, Vector3f cCol, int xRes, int yRes, vector<vector<Vector3f>> &pixels, vector<vector<float>> &dBuffer)
+	void RasterTriangle(Vector3f Va_ndc, Vector3f Vb_ndc, Vector3f Vc_ndc, Vector3f aCol, Vector3f bCol, Vector3f cCol, ScreenData &scr)
 	{
 		// backface culling
 		Vector3f direction = (Vc_ndc - Vb_ndc).cross(Va_ndc - Vb_ndc);
 		if(direction[2] < 0)
 			return;
-		Vector2f Pa = Scene::NDCtoScreen(xRes, yRes, Va_ndc);
-		Vector2f Pb = Scene::NDCtoScreen(xRes, yRes, Vb_ndc);
-		Vector2f Pc = Scene::NDCtoScreen(xRes, yRes, Vc_ndc);
-
-/*		DrawLine(Pa, Pb, pixels, Vector3f(255, 255, 0));
-		DrawLine(Pb, Pc, pixels, Vector3f(255, 255, 0));
-		DrawLine(Pc, Pa, pixels, Vector3f(255, 255, 0));*/
+		Vector2f Pa = Scene::NDCtoScreen(scr.width, scr.height, Va_ndc);
+		Vector2f Pb = Scene::NDCtoScreen(scr.width, scr.height, Vb_ndc);
+		Vector2f Pc = Scene::NDCtoScreen(scr.width, scr.height, Vc_ndc);
 
 		int xMin = std::min(std::min(Pa[0], Pb[0]), Pc[0]);
 		int xMax = std::max(std::max(Pa[0], Pb[0]), Pc[0]);
@@ -274,10 +271,9 @@ namespace render
 					{
 						// check depth buffer
 						float depth = pos[2];
-						//cout << "depth: " << depth << endl;
-						if(depth < dBuffer[y][x])
+						if(depth < scr.dBuffer[y][x])
 						{
-							dBuffer[y][x] = depth;
+							scr.dBuffer[y][x] = depth;
 							float r = alpha * aCol[0] + beta * bCol[0] + gamma * cCol[0];
 							float g = alpha * aCol[1] + beta * bCol[1] + gamma * cCol[1];
 							float b = alpha * aCol[2] + beta * bCol[2] + gamma * cCol[2];
@@ -285,63 +281,71 @@ namespace render
 							g = round(g * 255);
 							b = round(b * 255);
 							Vector3f color = Vector3f(r, g, b);
-							FillPixel(x, y, pixels, color);
+							FillPixel(x, y, scr.pixels, color);
 						}
 					}
 				}
 			}
 		}
 	}
-	void GouraudShading(Vector4f Va, Vector4f Vb, Vector4f Vc, Vector4f Na, Vector4f Nb, Vector4f Nc, Vector3f camPos, material_data &material, vector<light_data> &lights, transform_data &trans, int xRes, int yRes, vector<vector<Vector3f>> &pixels, vector<vector<float>> &dBuffer)
+	void GouraudShading(Vector4f Va, Vector4f Vb, Vector4f Vc, Vector4f Na, Vector4f Nb, Vector4f Nc, material_data &material, Scene::SceneData &scn, ScreenData &scr)
 	{
 		// calculate lighting in worldspace
-		Vector3f normA = Vector3f(Na[0], Na[1], Na[2]);
-		Vector3f normB = Vector3f(Nb[0], Nb[1], Nb[2]);
-		Vector3f normC = Vector3f(Nc[0], Nc[1], Nc[2]);
-		Vector3f aCol = Lighting(Vector3f(Va[0], Va[1], Va[2]), normA.normalized(), material, lights, camPos);
-		Vector3f bCol = Lighting(Vector3f(Vb[0], Vb[1], Vb[2]), normB.normalized(), material, lights, camPos);
-		Vector3f cCol = Lighting(Vector3f(Vc[0], Vc[1], Vc[2]), normC.normalized(), material, lights, camPos);
-
-		Vector3f Va_ndc = Scene::WorldtoNDC(trans, Va);
-		Vector3f Vb_ndc = Scene::WorldtoNDC(trans, Vb);
-		Vector3f Vc_ndc = Scene::WorldtoNDC(trans, Vc);
-
-		RasterTriangle(Va_ndc, Vb_ndc, Vc_ndc, aCol, bCol, cCol, xRes, yRes, pixels, dBuffer);
-	}
-
-	void FlatShading(Vector4f Va, Vector4f Vb, Vector4f Vc, Vector4f Na, Vector4f Nb, Vector4f Nc, Vector3f camPos, material_data &material, vector<light_data> &lights, transform_data &trans, int xRes, int yRes, vector<vector<Vector3f>> &pixels, vector<vector<float>> &dBuffer)
-	{
-		Vector3f normA = Vector3f(Na[0], Na[1], Na[2]);
-		Vector3f normB = Vector3f(Nb[0], Nb[1], Nb[2]);
-		Vector3f normC = Vector3f(Nc[0], Nc[1], Nc[2]);
-		Vector3f aCol = Lighting(Vector3f(Va[0], Va[1], Va[2]), normA.normalized(), material, lights, camPos);
-		Vector3f bCol = Lighting(Vector3f(Vb[0], Vb[1], Vb[2]), normB.normalized(), material, lights, camPos);
-		Vector3f cCol = Lighting(Vector3f(Vc[0], Vc[1], Vc[2]), normC.normalized(), material, lights, camPos);
-
-		Vector3f Va_ndc = Scene::WorldtoNDC(trans, Va);
-		Vector3f Vb_ndc = Scene::WorldtoNDC(trans, Vb);
-		Vector3f Vc_ndc = Scene::WorldtoNDC(trans, Vc);
-		
-		Vector3f colorAvg = (aCol + bCol + cCol) / 3;
-
-		RasterTriangle(Va_ndc, Vb_ndc, Vc_ndc, colorAvg, colorAvg, colorAvg, xRes, yRes, pixels, dBuffer);	
-	}
-
-	void PhongShading(Vector4f Va, Vector4f Vb, Vector4f Vc, Vector4f Na, Vector4f Nb, Vector4f Nc, Vector3f camPos, material_data &material, vector<light_data> &lights, transform_data &trans, int xRes, int yRes, vector<vector<Vector3f>> &pixels, vector<vector<float>> &dBuffer)
-	{
 		Vector3f normA = Vector3f(Na[0], Na[1], Na[2]).normalized();
 		Vector3f normB = Vector3f(Nb[0], Nb[1], Nb[2]).normalized();
 		Vector3f normC = Vector3f(Nc[0], Nc[1], Nc[2]).normalized();
 		Vector3f Va_world = Vector3f(Va[0], Va[1], Va[2]);
 		Vector3f Vb_world = Vector3f(Vb[0], Vb[1], Vb[2]);
 		Vector3f Vc_world = Vector3f(Vc[0], Vc[1], Vc[2]);
-		Vector3f Va_ndc = Scene::WorldtoNDC(trans, Va);
-		Vector3f Vb_ndc = Scene::WorldtoNDC(trans, Vb);
-		Vector3f Vc_ndc = Scene::WorldtoNDC(trans, Vc);
 
-		Vector2f Pa = Scene::NDCtoScreen(xRes, yRes, Va_ndc);
-		Vector2f Pb = Scene::NDCtoScreen(xRes, yRes, Vb_ndc);
-		Vector2f Pc = Scene::NDCtoScreen(xRes, yRes, Vc_ndc);
+		Vector3f Va_ndc = Scene::WorldtoNDC(scn.transformData, Va);
+		Vector3f Vb_ndc = Scene::WorldtoNDC(scn.transformData, Vb);
+		Vector3f Vc_ndc = Scene::WorldtoNDC(scn.transformData, Vc);
+
+		Vector3f aCol = Lighting(Va_world, normA, material, scn.lightData, scn.camPos);
+		Vector3f bCol = Lighting(Vb_world, normB, material, scn.lightData, scn.camPos);
+		Vector3f cCol = Lighting(Vc_world, normC, material, scn.lightData, scn.camPos);
+
+		RasterTriangle(Va_ndc, Vb_ndc, Vc_ndc, aCol, bCol, cCol, scr);
+	}
+
+	void FlatShading(Vector4f Va, Vector4f Vb, Vector4f Vc, Vector4f Na, Vector4f Nb, Vector4f Nc, material_data &material, Scene::SceneData &scn, ScreenData &scr)
+	{
+		Vector3f normA = Vector3f(Na[0], Na[1], Na[2]).normalized();
+		Vector3f normB = Vector3f(Nb[0], Nb[1], Nb[2]).normalized();
+		Vector3f normC = Vector3f(Nc[0], Nc[1], Nc[2]).normalized();		
+		Vector3f Va_world = Vector3f(Va[0], Va[1], Va[2]);
+		Vector3f Vb_world = Vector3f(Vb[0], Vb[1], Vb[2]);
+		Vector3f Vc_world = Vector3f(Vc[0], Vc[1], Vc[2]);
+
+		Vector3f Va_ndc = Scene::WorldtoNDC(scn.transformData, Va);
+		Vector3f Vb_ndc = Scene::WorldtoNDC(scn.transformData, Vb);
+		Vector3f Vc_ndc = Scene::WorldtoNDC(scn.transformData, Vc);
+
+		Vector3f aCol = Lighting(Va_world, normA, material, scn.lightData, scn.camPos);
+		Vector3f bCol = Lighting(Vb_world, normB, material, scn.lightData, scn.camPos);
+		Vector3f cCol = Lighting(Vc_world, normC, material, scn.lightData, scn.camPos);
+		
+		Vector3f colorAvg = (aCol + bCol + cCol) / 3;
+
+		RasterTriangle(Va_ndc, Vb_ndc, Vc_ndc, colorAvg, colorAvg, colorAvg, scr);	
+	}
+	
+	void PhongShading(Vector4f Va, Vector4f Vb, Vector4f Vc, Vector4f Na, Vector4f Nb, Vector4f Nc, material_data &material, Scene::SceneData &scn, ScreenData &scr)
+	{
+		Vector3f normA = Vector3f(Na[0], Na[1], Na[2]).normalized();
+		Vector3f normB = Vector3f(Nb[0], Nb[1], Nb[2]).normalized();
+		Vector3f normC = Vector3f(Nc[0], Nc[1], Nc[2]).normalized();		
+		Vector3f Va_world = Vector3f(Va[0], Va[1], Va[2]);
+		Vector3f Vb_world = Vector3f(Vb[0], Vb[1], Vb[2]);
+		Vector3f Vc_world = Vector3f(Vc[0], Vc[1], Vc[2]);
+
+		Vector3f Va_ndc = Scene::WorldtoNDC(scn.transformData, Va);
+		Vector3f Vb_ndc = Scene::WorldtoNDC(scn.transformData, Vb);
+		Vector3f Vc_ndc = Scene::WorldtoNDC(scn.transformData, Vc);
+		Vector2f Pa = Scene::NDCtoScreen(scr.width, scr.height, Va_ndc);
+		Vector2f Pb = Scene::NDCtoScreen(scr.width, scr.height, Vb_ndc);
+		Vector2f Pc = Scene::NDCtoScreen(scr.width, scr.height, Vc_ndc);
 
 		int xMin = std::min(std::min(Pa[0], Pb[0]), Pc[0]);
 		int xMax = std::max(std::max(Pa[0], Pb[0]), Pc[0]);
@@ -362,19 +366,51 @@ namespace render
 					{
 						// check depth buffer
 						float depth = pos[2];
-						if(depth < dBuffer[y][x])
+						if(depth < scr.dBuffer[y][x])
 						{
-							dBuffer[y][x] = depth;
+							scr.dBuffer[y][x] = depth;
 							Vector3f v = alpha * Va_world + beta * Vb_world + gamma * Vc_world;
 							Vector3f n = alpha * normA + beta * normB + gamma * normC;
-							Vector3f color = Lighting(v, n, material, lights, camPos);
+							Vector3f color = Lighting(v, n, material, scn.lightData, scn.camPos);
 							color = Vector3f(round(color[0] * 255), round(color[1] * 255), round(color[2] * 255));
-							FillPixel(x, y, pixels, color);
+							FillPixel(x, y, scr.pixels, color);
 						}
 					}
 				}
 			}
 		}
 
+	}
+
+	void Render(int width, int height, int mode, Scene::SceneData &scn, ScreenData &scr)
+	{
+		for(int i = 0; i < scn.objWorld.size(); i++)
+		{
+			obj_world obj = scn.objWorld[i];
+			for(int j = 0; j < obj.f.size(); j++)
+			{	
+				Vector3f thisFaceV = obj.f[j];
+				Vector3f thisFaceN = obj.nf[j];
+				int indexV0 = thisFaceV[0];
+				int indexV1 = thisFaceV[1];
+				int indexV2 = thisFaceV[2];
+				Vector4f v0 = obj.v[indexV0];
+				Vector4f v1 = obj.v[indexV1];
+				Vector4f v2 = obj.v[indexV2];
+				int indexN0 = thisFaceN[0];
+				int indexN1 = thisFaceN[1];
+				int indexN2 = thisFaceN[2];
+				Vector4f n0 = obj.n[indexN0];
+				Vector4f n1 = obj.n[indexN1];
+				Vector4f n2 = obj.n[indexN2];
+				if(mode == 0)
+					render::PhongShading(v0, v1, v2, n0, n1, n2, obj.material, scn, scr);
+				else if(mode == 1)
+					render::GouraudShading(v0, v1, v2, n0, n1, n2, obj.material, scn, scr);
+				else if(mode == 2)
+					render::FlatShading(v0, v1, v2, n0, n1, n2, obj.material, scn, scr);
+
+			}
+		}
 	}
 }
