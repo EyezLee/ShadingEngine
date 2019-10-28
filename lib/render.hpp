@@ -227,8 +227,6 @@ namespace render
 			float s = n.dot(h.normalized());
 			Vector3f lSpecular = lCol * pow(max(a, s), shininess);
 			specularSum += lSpecular;
-			//if(lSpecular[0] > 0.1)
-				//cout << " normalized: " << h.normalized() << "\n"  << " dot:  " << s << endl;
 		}
 		float max = 1;
 		float r = ambientCol[0] + diffuseCol[0] * diffuseSum[0] + specularCol[0] * specularSum[0];
@@ -238,7 +236,6 @@ namespace render
 		g = std::min(max, g);
 		b = std::min(max, b);
 		Vector3f output = Vector3f(r, g, b);
-		//cout << "output: " << "\n" << output << endl;
 		return output;
 	}
 
@@ -267,7 +264,7 @@ namespace render
 				if(alpha >= 0 && alpha <= 1 && beta >= 0 && beta <= 1 && gamma >= 0 && gamma <= 1)
 				{
 					Vector3f pos = alpha * Va_ndc + beta * Vb_ndc + gamma * Vc_ndc;
-					if(pos[0] > -1 && pos[0] < 1 && pos[1] > -1 && pos[1] < 1) // within crop cube
+					if(pos[0] > -1 && pos[0] < 1 && pos[1] > -1 && pos[1] < 1 && pos[2] > -1 && pos[2] < 1) // within crop cube
 					{
 						// check depth buffer
 						float depth = pos[2];
@@ -342,6 +339,10 @@ namespace render
 		Vector3f Va_ndc = Scene::WorldtoNDC(scn.transformData, Va);
 		Vector3f Vb_ndc = Scene::WorldtoNDC(scn.transformData, Vb);
 		Vector3f Vc_ndc = Scene::WorldtoNDC(scn.transformData, Vc);
+				// backface culling
+		Vector3f direction = (Vc_ndc - Vb_ndc).cross(Va_ndc - Vb_ndc);
+		if(direction[2] < 0)
+			return;
 		Vector2f Pa = Scene::NDCtoScreen(scr.width, scr.height, Va_ndc);
 		Vector2f Pb = Scene::NDCtoScreen(scr.width, scr.height, Vb_ndc);
 		Vector2f Pc = Scene::NDCtoScreen(scr.width, scr.height, Vc_ndc);
@@ -361,7 +362,7 @@ namespace render
 				if(alpha >= 0 && alpha <= 1 && beta >= 0 && beta <= 1 && gamma >= 0 && gamma <= 1)
 				{
 					Vector3f pos = alpha * Va_ndc + beta * Vb_ndc + gamma * Vc_ndc;
-					if(pos[0] > -1 && pos[0] < 1 && pos[1] > -1 && pos[1] < 1) // within crop cube
+					if(pos[0] > -1 && pos[0] < 1 && pos[1] > -1 && pos[1] < 1 && pos[2] > -1 && pos[2] < 1) // within crop cube
 					{
 						// check depth buffer
 						float depth = pos[2];
@@ -378,7 +379,6 @@ namespace render
 				}
 			}
 		}
-
 	}
 
 	void Wireframe(Vector4f Va, Vector4f Vb, Vector4f Vc, Scene::SceneData &scn, ScreenData &scr)
@@ -389,9 +389,15 @@ namespace render
 		Vector2f Pa = Scene::NDCtoScreen(scr.width, scr.height, Va_ndc);
 		Vector2f Pb = Scene::NDCtoScreen(scr.width, scr.height, Vb_ndc);
 		Vector2f Pc = Scene::NDCtoScreen(scr.width, scr.height, Vc_ndc);
-		DrawLine(Pa, Pb, scr.pixels, Vector3f(255, 255, 0));
-		DrawLine(Pb, Pc, scr.pixels, Vector3f(255, 255, 0));
-		DrawLine(Pc, Pa, scr.pixels, Vector3f(255, 255, 0));
+		int w = scr.width;
+		int h = scr.height;
+		if(Pa[0] < w &&Pa[0] > 0 && Pa[1] < h &&Pa[1] > 0&& Pb[0] > 0&&Pb[0] < w && Pb[1] > 0 && Pb[1] < h && Pc[0] > 0&&Pc[0] < w && Pc[1] < h && Pc[1] > 0)  // within crop cube
+		{
+			//cout << "check" << endl;
+			DrawLine(Pa, Pb, scr.pixels, Vector3f(255, 255, 0));
+			DrawLine(Pb, Pc, scr.pixels, Vector3f(255, 255, 0));
+			DrawLine(Pc, Pa, scr.pixels, Vector3f(255, 255, 0));
+		}
 	}
 
 	void Render(int width, int height, int mode, Scene::SceneData &scn, ScreenData &scr)
@@ -415,6 +421,7 @@ namespace render
 				Vector4f n0 = obj.n[indexN0];
 				Vector4f n1 = obj.n[indexN1];
 				Vector4f n2 = obj.n[indexN2];
+
 				if(mode == 0)
 					PhongShading(v0, v1, v2, n0, n1, n2, obj.material, scn, scr);
 				else if(mode == 1)

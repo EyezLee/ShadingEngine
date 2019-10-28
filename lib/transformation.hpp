@@ -44,8 +44,9 @@ namespace transformation
 	Matrix4f CameraMat(float xPos, float yPos, float zPos, float xRot, float yRot, float zRot, float angle)
 	{
 		Matrix4f Tc = Translate(xPos, yPos, zPos);
-		Matrix4f Rc = Rotate(xRot, yRot, zRot, angle);
-		Matrix4f cam = Rc * Tc;
+		Vector3f axes = Vector3f(xRot, yRot, zRot).normalized();
+		Matrix4f Rc = Rotate(axes[0], axes[1], axes[2], angle);
+		Matrix4f cam = Tc * Rc;
 		return cam.inverse();
 	}
 

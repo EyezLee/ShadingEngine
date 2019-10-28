@@ -18,15 +18,18 @@ int main(int argc, char *argv[])
 	int width = atoi(argv[2]);
 	int height = atoi(argv[3]);
 	int mode = atoi(argv[4]);
-	Vector3f bgCol = Vector3f(0, 0, 0);
+	Vector3f bgCol = Vector3f(0, 170, 154);
 	ScreenData screen(width, height, bgCol);
 	// load scene data
+
 	parser::ParseData(argv[1], scene);
+
 	// transfer to worldspace
 	scene.WorldSpace(scene);
 
 	// render
 	render::Render(width, height, mode, scene, screen);
+
 	// printout picture
 	PPM(width, height, screen);
 

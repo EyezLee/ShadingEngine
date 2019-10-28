@@ -78,7 +78,7 @@ namespace Scene
 	{
 		float x = (Vndc[0] + 1) * (xRes / 2);
 		float y = yRes - (Vndc[1] + 1) * (yRes / 2);
-		return Vector2f(round(x), round(y));
+		return Vector2f((int) x, (int) y);
 	}
 
 	Vector3f WorldtoNDC(transform_data &trans, Vector4f v)

@@ -8,15 +8,25 @@ right 0.5
 top 0.5
 bottom -0.5
 
-light 1 2 2 , 1 1 1 , 0
+light -0.8 0 1 , 1 1 0 , 0
+light 0.15 0.85 0.7 , 1 0 1 , 0
+light 0.5 -0.5 0.85 , 0 1 1 , 0
 
 objects:
 bunny bunny.obj
 
 bunny
-ambient 0.2 0.1 0.2
+ambient 0.3 0.2 0.4
 diffuse 0.6969 0.0327293 0.626496
 specular 0.1 0.1 0.1
 shininess 0.2
-s 1 1 1
-t 0.4 -0.9 0
+s 0.75 0.75 0.75
+t -0.15 -1.45 0
+
+bunny
+ambient 0.4 0.25 0.45
+diffuse 0.6969 0.0327293 0.626496
+specular 0.1 0.1 0.1
+shininess 0.2
+s 0.9 0.9 0.9
+t 0.9 -0.9 0
